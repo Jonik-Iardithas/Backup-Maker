@@ -49,3 +49,7 @@ Ordner mit Icons und Skript-Dateien:
 `C:\Program Files\PowerShellTools\Login-Manager\Icons`\
 `C:\Program Files\PowerShellTools\Backup-Maker`\
 `C:\Program Files\PowerShellTools\Backup-Maker\Icons`
+
+---
+
+/Img/Backup-Maker.png
