@@ -53,4 +53,4 @@ Ordner mit Icons und Skript-Dateien:
 ---
 
 ![Backup-Maker_Screenshot](/Img/Backup-Maker.png)
-![Login-Manager_Screenshot](https://github.com/Jonik-Iardithas/Login-Manager/Img/Login-Manager.png)
+![Login-Manager_Screenshot](https://github.com/Jonik-Iardithas/Login-Manager/blob/main/Img/Login-Manager.png)
