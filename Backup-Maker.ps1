@@ -549,17 +549,17 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 }
 
                 $ScriptMB = {
-                    If ($this.Src.Bytes) {"{0:N2}" -f ($this.Src.Bytes / 1MB)}
-                    ElseIf ($this.Bytes) {"{0:N2}" -f ($this.Bytes / 1MB)}
-                    ElseIf ($this)       {"{0:N2}" -f ($this / 1MB)}
-                    Else                 {"0"}
+                    If     (!($null -eq $this.Src.Bytes)) {"{0:N2}" -f ($this.Src.Bytes / 1MB)}
+                    ElseIf (!($null -eq $this.Bytes))     {"{0:N2}" -f ($this.Bytes / 1MB)}
+                    ElseIf (!($null -eq $this))           {"{0:N2}" -f ($this / 1MB)}
+                    Else                                  {"0"}
                 }
 
                 $ScriptB = {
-                    If ($this.Src.Bytes) {"{0:#,#}" -f $this.Src.Bytes}
-                    ElseIf ($this.Bytes) {"{0:#,#}" -f $this.Bytes}
-                    ElseIf ($this)       {"{0:#,#}" -f $this}
-                    Else                 {"0"}
+                    If     (!($null -eq $this.Src.Bytes)) {If ($this.Src.Bytes) {"{0:#,#}" -f $this.Src.Bytes} Else {"0"}}
+                    ElseIf (!($null -eq $this.Bytes))     {If ($this.Bytes)     {"{0:#,#}" -f $this.Bytes}     Else {"0"}}
+                    ElseIf (!($null -eq $this))           {If ($this)           {"{0:#,#}" -f $this}           Else {"0"}}
+                    Else                                  {"0"}
                 }
 
                 $TransferSize.Keys | ForEach-Object {$TransferSize.$_ | Add-Member -MemberType ScriptMethod -Name "ToMByte" -Value $ScriptMB -Force}
