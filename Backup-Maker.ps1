@@ -299,6 +299,8 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 $Formatter = @{
                                 A = @{
                                         RemoveD    = "{0}"
+                                        DirTotal   = "{0} Directories"
+                                        AttriTotal = "{0} Files"
                                      }
 
                                 B = @{
@@ -317,9 +319,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                      }
 
                                 E = @{
-                                        DirTotal   = "$NL{0} Directories"
-                                        FileTotal  = "$NL{0} Files / {1} MB / {2} Bytes"
-                                        AttriTotal = "$NL{0} Files"
+                                        FileTotal  = "{0} Files / {1} MB / {2} Bytes"
                                      }
                               }
 
@@ -538,9 +538,10 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 $ToReplaceDA = [array]($ToReplaceDA | Sort-Object -Property {$_.Src.Name})
                 $ToReplaceFA = [array]($ToReplaceFA | Sort-Object -Property {$_.Src.Dir,$_.Src.Name})
 
-                $FindLongest = @($null,$null,$null,$null,$null)
-                $Longest     = @($null,$null,$null,$null,$null)
-                $Data        = @($null,$null,$null,$null)
+                $FindLongest  = [object[]]::new(5)
+                $Longest      = [object[]]::new(5)
+                $Data         = [object[]]::new(0)
+                $FileProtocol = [string]::Empty
 
                 $TransferSize = @{
                     Copy    = ($ToCopyF.Src.Bytes    | Measure-Object -Sum).Sum
@@ -613,24 +614,31 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                     {
                                         If ($ToCopyD)
                                             {
-                                                $Data[0] += @($Protocol_List.CopyD); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                                $Data += @($Protocol_List.CopyD, $NL)
+
                                                 ForEach($i in $ToCopyD)
                                                     {
-                                                        $FindLongest[0] += @($i.Src.Name.Length); $FindLongest[1] += @($i.Dst.Name.Length)
-                                                        $Data[0] += @($Formatter.B.CopyD); $Data[1] += @($i.Src.Name); $Data[2] += @($i.Dst.Name); $Data[3] += @([string]::Empty)
+                                                        $FindLongest[0] += @($i.Src.Name.Length)
+                                                        $FindLongest[1] += @($i.Dst.Name.Length)
+                                                        $Data += @(($Formatter.B.CopyD, $i.Src.Name, $i.Dst.Name), $NL)
                                                     }
-                                                $Data[0] += @($Formatter.E.DirTotal); $Data[1] += @($ToCopyD.Count); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+
+                                                $Data += @($NL, ($Formatter.A.DirTotal, $ToCopyD.Count), $NL)
                                             }
 
                                         If ($ToCopyF)
                                             {
-                                                $Data[0] += @($Protocol_List.CopyF); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                                $Data += @($Protocol_List.CopyF, $NL)
+
                                                 ForEach($i in $ToCopyF)
                                                     {
-                                                        $FindLongest[0] += @($i.Src.Name.Length); $FindLongest[1] += @($i.Dst.Name.Length); $FindLongest[2] += @($i.ToByte().Length)
-                                                        $Data[0] += @($Formatter.C.CopyF); $Data[1] += @($i.Src.Name); $Data[2] += @($i.Dst.Name); $Data[3] += @($i.ToByte())
+                                                        $FindLongest[0] += @($i.Src.Name.Length)
+                                                        $FindLongest[1] += @($i.Dst.Name.Length)
+                                                        $FindLongest[2] += @($i.ToByte().Length)
+                                                        $Data += @(($Formatter.C.CopyF, $i.Src.Name, $i.Dst.Name, $i.ToByte()), $NL)
                                                     }
-                                                $Data[0] += @($Formatter.E.FileTotal); $Data[1] += @($ToCopyF.Count); $Data[2] += @($TransferSize.Copy.ToMByte()); $Data[3] += @($TransferSize.Copy.ToByte())
+
+                                                $Data += @($NL, ($Formatter.E.FileTotal, $ToCopyF.Count, $TransferSize.Copy.ToMByte(), $TransferSize.Copy.ToByte()), $NL)
                                             }
                                     }
                             }
@@ -663,24 +671,29 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                             {
                                 If ($ToRemoveD)
                                     {
-                                        $Data[0] += @($Protocol_List.RemoveD); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                        $Data += @($Protocol_List.RemoveD, $NL)
+
                                         ForEach($i in $ToRemoveD)
                                             {
                                                 $FindLongest[0] += @($i.Name.Length)
-                                                $Data[0] += @($Formatter.A.RemoveD); $Data[1] += @($i.Name); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                                $Data += @(($Formatter.A.RemoveD, $i.Name), $NL)
                                             }
-                                        $Data[0] += @($Formatter.E.DirTotal); $Data[1] += @($ToRemoveD.Count); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+
+                                        $Data += @($NL, ($Formatter.A.DirTotal, $ToRemoveD.Count), $NL)
                                     }
 
                                 If ($ToRemoveF)
                                     {
-                                        $Data[0] += @($Protocol_List.RemoveF); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                        $Data += @($Protocol_List.RemoveF, $NL)
+
                                         ForEach($i in $ToRemoveF)
                                             {
-                                                $FindLongest[0] += @($i.Name.Length); $FindLongest[2] += @($i.ToByte().Length)
-                                                $Data[0] += @($Formatter.C.RemoveF); $Data[1] += @($i.Name); $Data[2] += @([string]::Empty); $Data[3] += @($i.ToByte())
+                                                $FindLongest[0] += @($i.Name.Length)
+                                                $FindLongest[2] += @($i.ToByte().Length)
+                                                $Data += @(($Formatter.C.RemoveF, $i.Name, [string]::Empty, $i.ToByte()), $NL)
                                             }
-                                        $Data[0] += @($Formatter.E.FileTotal); $Data[1] += @($ToRemoveF.Count); $Data[2] += @($TransferSize.Remove.ToMByte()); $Data[3] += @($TransferSize.Remove.ToByte())
+
+                                        $Data += @($NL, ($Formatter.E.FileTotal, $ToRemoveF.Count, $TransferSize.Remove.ToMByte(), $TransferSize.Remove.ToByte()), $NL)
                                     }
                             }
                     }
@@ -724,24 +737,31 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                     {
                                         If ($ToReplaceD)
                                             {
-                                                $Data[0] += @($Protocol_List.ReplaceD); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                                $Data += @($Protocol_List.ReplaceD, $NL)
+
                                                 ForEach($i in $ToReplaceD)
                                                     {
-                                                        $FindLongest[0] += @($i.Dst.Name.Length); $FindLongest[1] += @($i.Src.Name.Length)
-                                                        $Data[0] += @($Formatter.B.ReplaceD); $Data[1] += @($i.Dst.Name); $Data[2] += @($i.Src.Name); $Data[3] += @([string]::Empty)
+                                                        $FindLongest[0] += @($i.Dst.Name.Length)
+                                                        $FindLongest[1] += @($i.Src.Name.Length)
+                                                        $Data += @(($Formatter.B.ReplaceD, $i.Dst.Name, $i.Src.Name), $NL)
                                                     }
-                                                $Data[0] += @($Formatter.E.DirTotal); $Data[1] += @($ToReplaceD.Count); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+
+                                                $Data += @($NL, ($Formatter.A.DirTotal, $ToReplaceD.Count), $NL)
                                             }
 
                                         If ($ToReplaceF)
                                             {
-                                                $Data[0] += @($Protocol_List.ReplaceF); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                                $Data += @($Protocol_List.ReplaceF, $NL)
+
                                                 ForEach($i in $ToReplaceF)
                                                     {
-                                                        $FindLongest[0] += @($i.Dst.Name.Length); $FindLongest[1] += @($i.Src.Name.Length); $FindLongest[2] += @($i.ToByte().Length)
-                                                        $Data[0] += @($Formatter.C.ReplaceF); $Data[1] += @($i.Dst.Name); $Data[2] += @($i.Src.Name); $Data[3] += @($i.ToByte())
+                                                        $FindLongest[0] += @($i.Dst.Name.Length)
+                                                        $FindLongest[1] += @($i.Src.Name.Length)
+                                                        $FindLongest[2] += @($i.ToByte().Length)
+                                                        $Data += @(($Formatter.C.ReplaceF, $i.Dst.Name, $i.Src.Name, $i.ToByte()), $NL)
                                                     }
-                                                $Data[0] += @($Formatter.E.FileTotal); $Data[1] += @($ToReplaceF.Count); $Data[2] += @($TransferSize.Replace.ToMByte()); $Data[3] += @($TransferSize.Replace.ToByte())
+
+                                                $Data += @($NL, ($Formatter.E.FileTotal, $ToReplaceF.Count, $TransferSize.Replace.ToMByte(), $TransferSize.Replace.ToByte()), $NL)
                                             }
                                     }
 
@@ -763,28 +783,36 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                             {
                                                 If ($ToReplaceDA)
                                                     {
-                                                        $Data[0] += @($Protocol_List.ReplaceDA); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                                        $Data += @($Protocol_List.ReplaceDA, $NL)
+
                                                         ForEach($i in $ToReplaceDA)
                                                             {
                                                                 $Val = $i.Src.Attributes.value__ -bor [System.Convert]::ToInt32(10000,2)
                                                                 $i.Src.Attributes = [System.IO.FileAttributes]$Val
                                                                 $Val = $i.Dst.Attributes.value__ -bor [System.Convert]::ToInt32(10000,2)
                                                                 $i.Dst.Attributes = [System.IO.FileAttributes]$Val
-                                                                $FindLongest[0] += @($i.Dst.Name.Length); $FindLongest[3] += @($i.Dst.Attributes.ToString().Length); $FindLongest[4] += @($i.Src.Attributes.ToString().Length)
-                                                                $Data[0] += @($Formatter.D.ReplaceA); $Data[1] += @($i.Dst.Name); $Data[2] += @($i.Dst.Attributes.ToString()); $Data[3] += @($i.Src.Attributes.ToString())
+                                                                $FindLongest[0] += @($i.Dst.Name.Length)
+                                                                $FindLongest[3] += @($i.Dst.Attributes.ToString().Length)
+                                                                $FindLongest[4] += @($i.Src.Attributes.ToString().Length)
+                                                                $Data += @(($Formatter.D.ReplaceA, $i.Dst.Name, $i.Dst.Attributes.ToString(), $i.Src.Attributes.ToString()), $NL)
                                                             }
-                                                        $Data[0] += @($Formatter.E.DirTotal); $Data[1] += @($ToReplaceDA.Count); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+
+                                                        $Data += @($NL, ($Formatter.A.DirTotal, $ToReplaceDA.Count), $NL)
                                                     }
 
                                                 If ($ToReplaceFA)
                                                     {
-                                                        $Data[0] += @($Protocol_List.ReplaceFA); $Data[1] += @([string]::Empty); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+                                                        $Data += @($Protocol_List.ReplaceFA, $NL)
+
                                                         ForEach($i in $ToReplaceFA)
                                                             {
-                                                                $FindLongest[0] += @($i.Dst.Name.Length); $FindLongest[3] += @($i.Dst.Attributes.ToString().Length); $FindLongest[4] += @($i.Src.Attributes.ToString().Length)
-                                                                $Data[0] += @($Formatter.D.ReplaceA); $Data[1] += @($i.Dst.Name); $Data[2] += @($i.Dst.Attributes.ToString()); $Data[3] += @($i.Src.Attributes.ToString())
+                                                                $FindLongest[0] += @($i.Dst.Name.Length)
+                                                                $FindLongest[3] += @($i.Dst.Attributes.ToString().Length)
+                                                                $FindLongest[4] += @($i.Src.Attributes.ToString().Length)
+                                                                $Data += @(($Formatter.D.ReplaceA, $i.Dst.Name, $i.Dst.Attributes.ToString(), $i.Src.Attributes.ToString()), $NL)
                                                             }
-                                                        $Data[0] += @($Formatter.E.AttriTotal); $Data[1] += @($ToReplaceFA.Count); $Data[2] += @([string]::Empty); $Data[3] += @([string]::Empty)
+
+                                                        $Data += @($NL, ($Formatter.A.AttriTotal, $ToReplaceFA.Count), $NL)
                                                     }
                                             }
                                     }
@@ -808,31 +836,31 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                 $Longest[$i] = ($FindLongest[$i] | Measure-Object -Maximum).Maximum
                             }
 
-                        For($i = 0; $i -lt $Data[0].Count; $i++)
+                        For($i = 0; $i -lt $Data.Count; $i++)
                             {
-                                If ($Protocol_List.ContainsValue($Data[0][$i]))
+                                If ($Protocol_List.ContainsValue($Data[$i]) -or $NL -eq $Data[$i])
                                     {
-                                        $FileProtocol += @($Data[0][$i])
+                                        $FileProtocol += $Data[$i]
                                     }
-                                ElseIf ($Formatter.A.ContainsValue($Data[0][$i]))
+                                ElseIf ($Formatter.A.ContainsValue($Data[$i][0]))
                                     {
-                                        $FileProtocol += @($Data[0][$i] -f $Data[1][$i])
+                                        $FileProtocol += $Data[$i][0] -f $Data[$i][1]
                                     }
-                                ElseIf ($Formatter.B.ContainsValue($Data[0][$i]))
+                                ElseIf ($Formatter.B.ContainsValue($Data[$i][0]))
                                     {
-                                        $FileProtocol += @($Data[0][$i] -f ($Data[1][$i]).PadRight($Longest[0],"."), $Data[2][$i])
+                                        $FileProtocol += $Data[$i][0] -f ($Data[$i][1]).PadRight($Longest[0],"."), $Data[$i][2]
                                     }
-                                ElseIf ($Formatter.C.ContainsValue($Data[0][$i]))
+                                ElseIf ($Formatter.C.ContainsValue($Data[$i][0]))
                                     {
-                                        $FileProtocol += @($Data[0][$i] -f ($Data[1][$i]).PadRight($Longest[0],"."), ($Data[2][$i]).PadRight($Longest[1],"."), ($Data[3][$i]).PadLeft($Longest[2]," "))
+                                        $FileProtocol += $Data[$i][0] -f ($Data[$i][1]).PadRight($Longest[0],"."), ($Data[$i][2]).PadRight($Longest[1],"."), ($Data[$i][3]).PadLeft($Longest[2]," ")
                                     }
-                                ElseIf ($Formatter.D.ContainsValue($Data[0][$i]))
+                                ElseIf ($Formatter.D.ContainsValue($Data[$i][0]))
                                     {
-                                        $FileProtocol += @($Data[0][$i] -f ($Data[1][$i]).PadRight($Longest[0],"."), ($Data[2][$i]).PadLeft($Longest[3],"."), ($Data[3][$i]).PadLeft($Longest[4],"."))
+                                        $FileProtocol += $Data[$i][0] -f ($Data[$i][1]).PadRight($Longest[0],"."), ($Data[$i][2]).PadLeft($Longest[3],"."), ($Data[$i][3]).PadLeft($Longest[4],".")
                                     }
-                                ElseIf ($Formatter.E.ContainsValue($Data[0][$i]))
+                                ElseIf ($Formatter.E.ContainsValue($Data[$i][0]))
                                     {
-                                        $FileProtocol += @($Data[0][$i] -f $Data[1][$i], $Data[2][$i], $Data[3][$i])
+                                        $FileProtocol += $Data[$i][0] -f $Data[$i][1], $Data[$i][2], $Data[$i][3]
                                     }
                             }
 
