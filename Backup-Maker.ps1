@@ -353,8 +353,11 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                             }
                     }
                 
-                $SrcItems = Invoke-Expression $Cmd_Src
-                $DstItems = Invoke-Expression $Cmd_Dst
+                $SrcItems = [object[]]::new(0)
+                $DstItems = [object[]]::new(0)
+
+                $SrcItems += Invoke-Expression $Cmd_Src
+                $DstItems += Invoke-Expression $Cmd_Dst
 
                 If ($HiddenF)
                     {
