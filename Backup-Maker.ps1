@@ -581,17 +581,15 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 If ($Copy)
                     {
                         Do {
-                            $Diskspace = (Resolve-Path -Path $DstPath).Drive.Free
-                            $Go = $Diskspace -ge $TransferSize.Copy
+                            $DiskSpace = (Resolve-Path -Path $DstPath).Drive.Free
+                            $Go = $DiskSpace -ge $TransferSize.Copy
 
-                            If (-not $Go)
+                            If (!$Go)
                                 {
-                                    $Space = [Math]::Abs(($Diskspace - $TransferSize.Copy) / 1MB)
-                                    $SyncHash.lb_DiskSpace.Text = ($DiskSpace_Msg -f "Kopieren", $Space)
-                                    $Choice = $SyncHash.DiskSpace_Form.ShowDialog()
+                                    $SyncHash.lb_DiskSpace.Text = $DiskSpace_Msg -f "Kopieren", [Math]::Abs(($DiskSpace - $TransferSize.Copy) / 1MB)
                                 }
                             }
-                        Until ($Go -or ($Choice -eq [System.Windows.Forms.DialogResult]::Abort))
+                        Until ($Go -or $SyncHash.DiskSpace_Form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::Abort)
 
                         If ($Go)
                             {
@@ -704,17 +702,15 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 If ($Replace)
                     {
                         Do {
-                            $Diskspace = (Resolve-Path -Path $DstPath).Drive.Free
-                            $Go = $Diskspace -ge $TransferSize.Replace
+                            $DiskSpace = (Resolve-Path -Path $DstPath).Drive.Free
+                            $Go = $DiskSpace -ge $TransferSize.Replace
 
-                            If (-not $Go)
+                            If (!$Go)
                                 {
-                                    $Space = [Math]::Abs(($Diskspace - $TransferSize.Replace) / 1MB)
-                                    $SyncHash.lb_DiskSpace.Text = ($DiskSpace_Msg -f "Ersetzen", $Space)
-                                    $Choice = $SyncHash.DiskSpace_Form.ShowDialog()
+                                    $SyncHash.lb_DiskSpace.Text = $DiskSpace_Msg -f "Ersetzen", [Math]::Abs(($DiskSpace - $TransferSize.Replace) / 1MB)
                                 }
                             }
-                        Until ($Go -or ($Choice -eq [System.Windows.Forms.DialogResult]::Abort))
+                        Until ($Go -or $SyncHash.DiskSpace_Form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::Abort)
 
                         If ($Go)
                             {
