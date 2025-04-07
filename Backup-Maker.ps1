@@ -547,9 +547,10 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 $FileProtocol = [string]::Empty
 
                 $TransferSize = @{
-                    Copy    = ($ToCopyF.Src.Bytes    | Measure-Object -Sum).Sum
-                    Remove  = ($ToRemoveF.Bytes      | Measure-Object -Sum).Sum
-                    Replace = ($ToReplaceF.Src.Bytes | Measure-Object -Sum).Sum
+                    Copy        = ($ToCopyF.Src.Bytes    | Measure-Object -Sum).Sum
+                    Remove      = ($ToRemoveF.Bytes      | Measure-Object -Sum).Sum
+                    Replace     = ($ToReplaceF.Src.Bytes | Measure-Object -Sum).Sum
+                    ReplaceDiff = ($ToReplaceF.Src.Bytes | Measure-Object -Sum).Sum - ($ToReplaceF.Dst.Bytes | Measure-Object -Sum).Sum
                 }
 
                 $ScriptMB = {
@@ -703,11 +704,11 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                     {
                         Do {
                             $DiskSpace = (Resolve-Path -Path $DstPath).Drive.Free
-                            $Go = $DiskSpace -ge $TransferSize.Replace
+                            $Go = $DiskSpace -ge $TransferSize.ReplaceDiff
 
                             If (!$Go)
                                 {
-                                    $SyncHash.lb_DiskSpace.Text = $DiskSpace_Msg -f "Ersetzen", [Math]::Abs(($DiskSpace - $TransferSize.Replace) / 1MB)
+                                    $SyncHash.lb_DiskSpace.Text = $DiskSpace_Msg -f "Ersetzen", [Math]::Abs(($DiskSpace - $TransferSize.ReplaceDiff) / 1MB)
                                 }
                             }
                         Until ($Go -or $SyncHash.DiskSpace_Form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::Abort)
