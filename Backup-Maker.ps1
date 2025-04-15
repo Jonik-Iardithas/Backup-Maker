@@ -27,7 +27,7 @@ $TextNewFolder = "Bitte Ordnername eingeben. Bestätigen mit 'Enter'."
 $SettingsFile = "$env:LOCALAPPDATA\PowerShellTools\Backup-Maker\Settings.ini"
 $OutputFile = "$env:USERPROFILE\Desktop\FileProtocol.txt"
 $NL = [System.Environment]::NewLine
-$SyncHash = [System.Collections.Hashtable]::Synchronized(@{})
+$SyncHash = [System.Collections.Hashtable]::Synchronized(@{Copy = "Kopieren"; Replace = "Ersetzen"})
 $RSList = @("CopyIncremental")
 $L_Ptr = [System.IntPtr]::new(0)
 $S_Ptr = [System.IntPtr]::new(0)
@@ -36,7 +36,7 @@ $Msg_List = @{
     Start        = "Backup-Maker gestartet."
     NoDir        = "Kein gültiger Verzeichnisname angegeben."
     NoIdent      = "Quelle und Ziel dürfen nicht identisch sein."
-    NoParent     = "Quelle und Ziel dürfen keine Unterverzeichnisse von einander sein."
+    NoParent     = "Quelle und Ziel dürfen nicht dasselbe Stammverzeichnis haben."
     NoEmpty      = "Quelle darf kein leeres Verzeichnis sein."
     NoAction     = "Keine Aktion ausgewählt."
     NewFolder    = "Neuer Ordner erfolgreich erstellt."
@@ -49,6 +49,40 @@ $Msg_List = @{
     Finished     = "Backup-Vorgang beendet."
     SkipCopy     = "Kopieren übersprungen."
     SkipReplace  = "Ersetzen übersprungen."
+}
+
+$Txt_List = @{
+    Form           = "Backup-Maker"
+    Copy_Form      = "Aufgabenformular"
+    DiskSpace_Form = "Benachrichtigungsformular"
+    lb_DiskSpace   = "Nicht genügend Speicherplatz für folgende Aktion vorhanden:" + $NL + $NL +
+                     "{0}" + $NL + $NL + 
+                     "Es wird empfohlen, Speicher durch Löschen nicht benötigter Daten freizugeben oder die Aktion zu überspringen." + $NL + $NL +
+                     "Ungefähr benötigter Speicherplatz: {1:N2} MB"
+    lb_Source      = "Quelle:"
+    lb_Destination = "Ziel:"
+    lb_Progress    = "Fortschritt:"
+    lb_Options     = "Optionen:"
+    lb_Events      = "Ereignisse:"
+    lb_Synopsis    = "Synopsis"
+    bt_Copy        = "Backup"
+    bt_All         = "Alles markieren"
+    bt_Exit        = "Exit"
+    bt_OK          = "Start"
+    bt_Cancel      = "Abbruch"
+    bt_Retry       = "Erneut versuchen"
+    bt_Abort       = "Überspringen"
+}
+
+$Tooltips_List = @{
+    NewFolder = "Klicken um neuen Ordner zu erstellen."
+}
+
+$MessageBoxes_List = @{
+    Initialize_Msg_01  = "Konnte Datei {0} nicht finden."
+    Initialize_Msg_02  = "Backup-Maker: Fehler"
+    FormClosing_Msg_01 = "Der Backup-Prozess wurde noch nicht abgeschlossen. Soll dieser wirklich beendet werden (nicht empfohlen)?"
+    FormClosing_Msg_02 = "Achtung!"
 }
 
 $Icons_List = @{
@@ -91,7 +125,7 @@ function Initialize-Me ([string]$FilePath)
     {
         If (!(Test-Path -Path $FilePath))
             {
-                [System.Windows.Forms.MessageBox]::Show("Konnte Datei `"$FilePath`" nicht finden.","Backup-Maker: Fehler",0)
+                [System.Windows.Forms.MessageBox]::Show(($MessageBoxes_List.Initialize_Msg_01 -f $FilePath),$MessageBoxes_List.Initialize_Msg_02,0)
                 Exit
             }
 
@@ -322,11 +356,6 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                         FileTotal  = "{0} Files / {1} MB / {2} Bytes"
                                      }
                               }
-
-                $DiskSpace_Msg = "Nicht genügend Speicherplatz für folgende Aktion vorhanden:" + $NL + $NL +
-                                 "{0}" + $NL + $NL +
-                                 "Es wird empfohlen, Speicher durch Löschen nicht benötigter Daten freizugeben oder die Aktion zu überspringen." + $NL + $NL +
-                                 "Ungefähr benötigter Speicherplatz: {1:N2} MB"
 
                 $Cmd_Src = 'Get-ChildItem -Path $SrcPath -File'
                 $Cmd_Dst = 'Get-ChildItem -Path $DstPath -File'
@@ -587,7 +616,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
 
                             If (!$Go)
                                 {
-                                    $SyncHash.lb_DiskSpace.Text = $DiskSpace_Msg -f "Kopieren", [Math]::Abs(($DiskSpace - $TransferSize.Copy) / 1MB)
+                                    $SyncHash.lb_DiskSpace.Text = $SyncHash.lb_DiskSpace.Text -f $SyncHash.Copy, [Math]::Abs(($DiskSpace - $TransferSize.Copy) / 1MB)
                                 }
                             }
                         Until ($Go -or $SyncHash.DiskSpace_Form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::Abort)
@@ -708,7 +737,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
 
                             If (!$Go)
                                 {
-                                    $SyncHash.lb_DiskSpace.Text = $DiskSpace_Msg -f "Ersetzen", [Math]::Abs(($DiskSpace - $TransferSize.ReplaceDiff) / 1MB)
+                                    $SyncHash.lb_DiskSpace.Text = $SyncHash.lb_DiskSpace.Text -f $SyncHash.Replace, [Math]::Abs(($DiskSpace - $TransferSize.ReplaceDiff) / 1MB)
                                 }
                             }
                         Until ($Go -or $SyncHash.DiskSpace_Form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::Abort)
@@ -972,7 +1001,7 @@ $ht_Data = @{
             ClientSize = New-Object System.Drawing.Size(600,560)
             StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             Icon = $Paths.IconFolder + "Backup-Maker.ico"
-            Text = "Backup-Maker"
+            Text = $Txt_List.Form
             BackColor = $FormColor
             FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
             MaximizeBox = $false
@@ -991,7 +1020,7 @@ $ar_Events = @(
                     {
                         If (Get-Runspace -Name $RSList)
                             {
-                                If ([System.Windows.Forms.MessageBox]::Show("Der Backup-Prozess wurde noch nicht abgeschlossen. Soll dieser wirklich beendet werden (nicht empfohlen)?","Achtung!",4) -eq [System.Windows.Forms.DialogResult]::No)
+                                If ([System.Windows.Forms.MessageBox]::Show($MessageBoxes_List.FormClosing_Msg_01,$MessageBoxes_List.FormClosing_Msg_02,4) -eq [System.Windows.Forms.DialogResult]::No)
                                     {
                                         $_.Cancel = $true
                                     }
@@ -1023,7 +1052,7 @@ $ht_Data = @{
             Left = 10
             Top = 10
             Width = 200
-            Text = "Quelle:"
+            Text = $Txt_List.lb_Source
             Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
             TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
             }
@@ -1033,21 +1062,21 @@ Create-Object -Name lb_Source -Type Label -Data $ht_Data -Control Form
 # -------------------------------------------------------------
 
 $ht_Data.Top = 110
-$ht_Data.Text = "Ziel:"
+$ht_Data.Text = $Txt_List.lb_Destination
 
 Create-Object -Name lb_Destination -Type Label -Data $ht_Data -Control Form
 
 # -------------------------------------------------------------
 
 $ht_Data.Top = 210
-$ht_Data.Text = "Fortschritt:"
+$ht_Data.Text = $Txt_List.lb_Progress
 
 Create-Object -Name lb_Progress -Type Label -Data $ht_Data -Control Form
 
 # -------------------------------------------------------------
 
 $ht_Data.Left = $Form.ClientSize.Width / 2 + 10
-$ht_Data.Text = "Optionen:"
+$ht_Data.Text = $Txt_List.lb_Options
 
 Create-Object -Name lb_Options -Type Label -Data $ht_Data -Control Form
 
@@ -1055,7 +1084,7 @@ Create-Object -Name lb_Options -Type Label -Data $ht_Data -Control Form
 
 $ht_Data.Top = 410
 $ht_Data.Left = 10
-$ht_Data.Text = "Ereignisse:"
+$ht_Data.Text = $Txt_List.lb_Events
 
 Create-Object -Name lb_Events -Type Label -Data $ht_Data -Control Form
 
@@ -1165,7 +1194,7 @@ $ar_Events = @(
                     })}
                 {Add_MouseHover(
                     {
-                        $Tooltip.SetToolTip($this,"Klicken um neuen Ordner zu erstellen.")
+                        $Tooltip.SetToolTip($this,$Tooltips_List.NewFolder)
                     })}
               )
 
@@ -1373,7 +1402,7 @@ $ht_Data = @{
             FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
             BackColor = $ButtonColor
             Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
-            Text = "Backup"
+            Text = $Txt_List.bt_Copy
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             Cursor = [System.Windows.Forms.Cursors]::Hand
             }
@@ -1415,7 +1444,7 @@ Create-Object -Name bt_Copy -Type Button -Data $ht_Data -Events $ar_Events -Cont
 # -------------------------------------------------------------
 
 $ht_Data.Left = $Form.ClientSize.Width / 2 - $ButtonSizeA.Width / 2
-$ht_Data.Text = "Alles markieren"
+$ht_Data.Text = $Txt_List.bt_All
 
 $ar_Events = @(
                 {Add_Click(
@@ -1438,7 +1467,7 @@ Create-Object -Name bt_All -Type Button -Data $ht_Data -Events $ar_Events -Contr
 # -------------------------------------------------------------
 
 $ht_Data.Left = $Form.ClientSize.Width - $ButtonSizeA.Width - 30
-$ht_Data.Text = "Exit"
+$ht_Data.Text = $Txt_List.bt_Exit
 
 $ar_Events = @(
                 {Add_Click({$Form.Close()})}
@@ -1460,7 +1489,7 @@ $ht_Data = @{
             ClientSize = New-Object System.Drawing.Size(600,300)
             StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             Icon = $Paths.IconFolder + "Backup-Maker.ico"
-            Text = "Aufgabenformular"
+            Text = $Txt_List.Copy_Form
             BackColor = $FormColor
             FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
             MaximizeBox = $false
@@ -1489,7 +1518,7 @@ $ht_Data = @{
             Left = 10
             Top = 10
             Width = $Copy_Form.ClientSize.Width - 20
-            Text = "Synopsis"
+            Text = $Txt_List.lb_Synopsis
             Font = New-Object System.Drawing.Font($FontName, ($FontSize + 1), $FontStyle)
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             }
@@ -1527,7 +1556,7 @@ $ht_Data = @{
             FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
             BackColor = $ButtonColor
             Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
-            Text = "Start"
+            Text = $Txt_List.bt_OK
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             Cursor = [System.Windows.Forms.Cursors]::Hand
             DialogResult = [System.Windows.Forms.DialogResult]::OK
@@ -1538,7 +1567,7 @@ Create-Object -Name bt_OK -Type Button -Data $ht_Data -Control Copy_Form
 # -------------------------------------------------------------
 
 $ht_Data.Left = $Copy_Form.ClientSize.Width - $ButtonSizeC.Width - 60
-$ht_Data.Text = "Abbruch"
+$ht_Data.Text = $Txt_List.bt_Cancel
 $ht_Data.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
 
 Create-Object -Name bt_Cancel -Type Button -Data $ht_Data -Control Copy_Form
@@ -1556,7 +1585,7 @@ $ht_Data = @{
             ClientSize = New-Object System.Drawing.Size(600,240)
             StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             Icon = $Paths.IconFolder + "Backup-Maker.ico"
-            Text = "Benachrichtigungsformular"
+            Text = $Txt_List.DiskSpace_Form
             BackColor = $FormColor
             FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
             MaximizeBox = $false
@@ -1590,6 +1619,7 @@ $ht_Data = @{
             Width = $DiskSpace_Form.ClientSize.Width - 20
             Height = 160
             Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Text = $Txt_List.lb_DiskSpace
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             }
 
@@ -1610,7 +1640,7 @@ $ht_Data = @{
             FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
             BackColor = $ButtonColor
             Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
-            Text = "Erneut versuchen"
+            Text = $Txt_List.bt_Retry
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             Cursor = [System.Windows.Forms.Cursors]::Hand
             DialogResult = [System.Windows.Forms.DialogResult]::Retry
@@ -1621,7 +1651,7 @@ Create-Object -Name bt_Retry -Type Button -Data $ht_Data -Control DiskSpace_Form
 # -------------------------------------------------------------
 
 $ht_Data.Left = $DiskSpace_Form.ClientSize.Width - $ButtonSizeD.Width - 60
-$ht_Data.Text = "Überspringen"
+$ht_Data.Text = $Txt_List.bt_Abort
 $ht_Data.DialogResult = [System.Windows.Forms.DialogResult]::Abort
 
 Create-Object -Name bt_Abort -Type Button -Data $ht_Data -Control DiskSpace_Form
