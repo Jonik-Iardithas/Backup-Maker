@@ -15,10 +15,10 @@ $FontSize = 9
 $FontStyle = [System.Drawing.FontStyle]::Regular
 $FormColor = [System.Drawing.Color]::LightSteelBlue
 $TextBoxColor = [System.Drawing.Color]::Ivory
-$ButtonSizeA = New-Object System.Drawing.Size(140,30)
-$ButtonSizeB = New-Object System.Drawing.Size(26,26)
-$ButtonSizeC = New-Object System.Drawing.Size(110,30)
-$ButtonSizeD = New-Object System.Drawing.Size(160,30)
+$ButtonSizeA = [System.Drawing.Size]::new(140,30)
+$ButtonSizeB = [System.Drawing.Size]::new(26,26)
+$ButtonSizeC = [System.Drawing.Size]::new(110,30)
+$ButtonSizeD = [System.Drawing.Size]::new(160,30)
 $ButtonColor = [System.Drawing.Color]::LightCyan
 $Global:SourcePath = $env:USERPROFILE
 $Global:DestinationPath = (Resolve-Path -Path ([System.Environment]::CurrentDirectory)).Drive.Root
@@ -145,7 +145,7 @@ function Initialize-Me ([string]$FilePath)
 
 function Create-Object ([string]$Name, [string]$Type, [HashTable]$Data, [array]$Events, [string]$Control)
     {
-        New-Variable -Name $Name -Value (New-Object System.Windows.Forms.$Type) -Scope Global -Force
+        New-Variable -Name $Name -Value (New-Object -TypeName System.Windows.Forms.$Type) -Scope Global -Force
 
         ForEach ($k in $Data.Keys) {Invoke-Expression ("`$$Name.$k = " + {$Data.$k})}
         ForEach ($i in $Events)    {Invoke-Expression ("`$$Name.$i")}
@@ -916,7 +916,7 @@ function Munition-ComboBox ([object]$Name, [string]$Path)
                 [void]$Name.Items.Add([PSCustomObject]@{Name = Split-Path -Path $Path -Parent; DisplayName = '[...]'})
             }
         
-        ForEach($i in Get-Childitem -Path $Path -Directory)
+        ForEach($i in Get-Childitem -Path $Path -Directory | Sort-Object)
             {
                 [void]$Name.Items.Add([PSCustomObject]@{Name = $i.FullName; DisplayName = $i.FullName})
             }
@@ -1005,7 +1005,7 @@ $IconMax = New-Object -TypeName System.Drawing.Size(($Icons.Values.Width | Measu
 # =============================================================
 
 $ht_Data = @{
-            ClientSize = New-Object System.Drawing.Size(600,560)
+            ClientSize = [System.Drawing.Size]::new(600,560)
             StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             Icon = $Paths.IconFolder + "Backup-Maker.ico"
             Text = $Txt_List.Form
@@ -1060,7 +1060,7 @@ $ht_Data = @{
             Top = 10
             Width = 200
             Text = $Txt_List.lb_Source
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
             }
 
@@ -1103,7 +1103,7 @@ $ht_Data = @{
             Left = 10
             Top = $lb_Source.Bounds.Bottom
             Width = $Form.ClientSize.Width - 50
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             Text = $Global:SourcePath
             BackColor = $TextBoxColor
             Cursor = [System.Windows.Forms.Cursors]::IBeam
@@ -1165,7 +1165,7 @@ Create-Object -Name tb_Destination -Type TextBox -Data $ht_Data -Events $ar_Even
 $ht_Data.Top = $lb_Events.Bounds.Bottom
 $ht_Data.Height = $Form.ClientSize.Height - $lb_Events.Bounds.Bottom - 10
 $ht_Data.Width = $Form.ClientSize.Width - 20
-$ht_Data.Font = New-Object System.Drawing.Font($FontName, ($FontSize - 1), $FontStyle)
+$ht_Data.Font = New-Object -TypeName System.Drawing.Font($FontName, ($FontSize - 1), $FontStyle)
 $ht_Data.Text = $null
 $ht_Data += @{
              Multiline = $true
@@ -1227,7 +1227,7 @@ $ht_Data = @{
             BackColor = $TextBoxColor
             DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
             FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             Cursor = [System.Windows.Forms.Cursors]::Hand
             }
 
@@ -1366,7 +1366,7 @@ $ht_Data = @{
             Width = $Form.ClientSize.Width / 2 - 20
             Height = 100
             BackColor = [System.Drawing.Color]::Ivory
-            Font = New-Object System.Drawing.Font($FontName, ($FontSize - 1), $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, ($FontSize - 1), $FontStyle)
             BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
             CheckOnClick = $true
             }
@@ -1408,7 +1408,7 @@ $ht_Data = @{
             Size = $ButtonSizeA
             FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
             BackColor = $ButtonColor
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             Text = $Txt_List.bt_Copy
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             Cursor = [System.Windows.Forms.Cursors]::Hand
@@ -1493,7 +1493,7 @@ $SyncHash.bt_Exit = $bt_Exit
 # =============================================================
 
 $ht_Data = @{
-            ClientSize = New-Object System.Drawing.Size(600,300)
+            ClientSize = [System.Drawing.Size]::new(600,300)
             StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             Icon = $Paths.IconFolder + "Backup-Maker.ico"
             Text = $Txt_List.Copy_Form
@@ -1526,7 +1526,7 @@ $ht_Data = @{
             Top = 10
             Width = $Copy_Form.ClientSize.Width - 20
             Text = $Txt_List.lb_Synopsis
-            Font = New-Object System.Drawing.Font($FontName, ($FontSize + 1), $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, ($FontSize + 1), $FontStyle)
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             }
 
@@ -1541,7 +1541,7 @@ $ht_Data = @{
             Top = $lb_Synopsis.Bounds.Bottom + 4
             Width = $Copy_Form.ClientSize.Width - 20
             Height = $Copy_Form.ClientSize.Height - $lb_Synopsis.Bounds.Bottom - 70
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             BackColor = $TextBoxColor
             Cursor = [System.Windows.Forms.Cursors]::IBeam
             ReadOnly = $true
@@ -1562,7 +1562,7 @@ $ht_Data = @{
             Size = $ButtonSizeC
             FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
             BackColor = $ButtonColor
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             Text = $Txt_List.bt_OK
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             Cursor = [System.Windows.Forms.Cursors]::Hand
@@ -1589,7 +1589,7 @@ $Copy_Form.CancelButton = $bt_Cancel
 # =============================================================
 
 $ht_Data = @{
-            ClientSize = New-Object System.Drawing.Size(600,240)
+            ClientSize = [System.Drawing.Size]::new(600,240)
             StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             Icon = $Paths.IconFolder + "Backup-Maker.ico"
             Text = $Txt_List.DiskSpace_Form
@@ -1625,7 +1625,7 @@ $ht_Data = @{
             Top = 10
             Width = $DiskSpace_Form.ClientSize.Width - 20
             Height = 160
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             Text = $Txt_List.lb_DiskSpace
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             }
@@ -1646,7 +1646,7 @@ $ht_Data = @{
             Size = $ButtonSizeD
             FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
             BackColor = $ButtonColor
-            Font = New-Object System.Drawing.Font($FontName, $FontSize, $FontStyle)
+            Font = New-Object -TypeName System.Drawing.Font($FontName, $FontSize, $FontStyle)
             Text = $Txt_List.bt_Retry
             TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             Cursor = [System.Windows.Forms.Cursors]::Hand
