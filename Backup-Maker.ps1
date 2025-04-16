@@ -92,7 +92,7 @@ $Icons_List = @{
     Replace   = "$env:windir\system32\shell32.dll|295"
 }
 
-$Synopsis_List = @($null,$null,("KEINE","ALLE"),("NICHT GELÖSCHT","GELÖSCHT"),("NICHT ERSETZT","ERSETZT"),("NICHT","MIT DEM ORIGINAL"),("AUS","EIN"),("NICHT","EBENFALLS"),("NICHT","EBENFALLS"),("KEINE","eine"))
+$Synopsis_List = @(("KEINE","ALLE"),("NICHT GELÖSCHT","GELÖSCHT"),("NICHT ERSETZT","ERSETZT"),("NICHT","MIT DEM ORIGINAL"),("AUS","EIN"),("NICHT","EBENFALLS"),("NICHT","EBENFALLS"),("KEINE","eine"))
 
 $Synopsis = "Quellverzeichnis: {0}" + $NL +
             "Zielverzeichnis: {1}" + $NL + $NL +
@@ -964,19 +964,19 @@ function Reverse-Me ([object]$Button, [object]$TextBox, [string]$Path)
 function Fill-Synopsis ([string]$Synopsis, [array]$List, [string]$SrcPath, [string]$DstPath, [bool]$Copy, [bool]$Remove, [bool]$Replace, [bool]$Attributes, [bool]$Sub, [bool]$HiddenF, [bool]$HiddenD, [bool]$OutFile)
     {
         $Table = @{
-            2 = $Copy
-            3 = $Remove
-            4 = $Replace
-            5 = $Attributes
-            6 = $Sub
-            7 = $HiddenF
-            8 = $HiddenD
-            9 = $OutFile
+            0 = $Copy
+            1 = $Remove
+            2 = $Replace
+            3 = $Attributes
+            4 = $Sub
+            5 = $HiddenF
+            6 = $HiddenD
+            7 = $OutFile
         }
 
         $Var = @($SrcPath,$DstPath)
 
-        For($i = 2; $i -lt $List.Count; $i++)
+        For($i = 0; $i -lt $List.Count; $i++)
             {
                 $Var += @($List[$i][[int]$Table[$i]])
             }
