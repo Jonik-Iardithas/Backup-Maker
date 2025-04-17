@@ -135,7 +135,7 @@ function Initialize-Me ([string]$FilePath)
 
         ForEach ($i in $Data)
             {
-                $ht_Result += @{$i.Split("=")[0].Trim(" ") = $i.Split("=")[-1].Trim(" ")}
+                $ht_Result += @{$i.Split("=")[0].Trim() = $i.Split("=")[-1].Trim()}
             }
 
         return $ht_Result
