@@ -22,8 +22,6 @@ $ButtonSizeD = [System.Drawing.Size]::new(160,30)
 $ButtonColor = [System.Drawing.Color]::LightCyan
 $Global:SourcePath = $env:USERPROFILE
 $Global:DestinationPath = (Resolve-Path -Path ([System.Environment]::CurrentDirectory)).Drive.Root
-$Options = @("Neue Dateien kopieren", "Fehlende Dateien löschen", "Ältere Dateien ersetzen", "Attribute übernehmen", "Unterordner einbeziehen", "Versteckte Dateien einbeziehen", "Versteckte Ordner einbeziehen", "Protokolldatei erstellen")
-$TextNewFolder = "Bitte Ordnername eingeben. Bestätigen mit 'Enter'."
 $SettingsFile = "$env:LOCALAPPDATA\PowerShellTools\Backup-Maker\Settings.ini"
 $OutputFile = "$env:USERPROFILE\Desktop\FileProtocol.txt"
 $NL = [System.Environment]::NewLine
@@ -45,7 +43,6 @@ $Msg_List = @{
     Copy         = "{0} Datei(en) und {1} Ordner mit {2} MB ({3} Bytes) werden kopiert..."
     Remove       = "{0} Datei(en) und {1} Ordner mit {2} MB ({3} Bytes) werden gelöscht..."
     Replace      = "{0} Datei(en) und {1} Ordner mit {2} MB ({3} Bytes) werden ersetzt..."
-    ReplaceA     = "{0} Datei(en) und {1} Ordner werden attribuiert..."
     Finished     = "Backup-Vorgang beendet."
     SkipCopy     = "Kopieren übersprungen."
     SkipReplace  = "Ersetzen übersprungen."
@@ -53,6 +50,7 @@ $Msg_List = @{
 
 $Txt_List = @{
     Form           = "Backup-Maker"
+    clb_Box        = @("Neue Dateien kopieren", "Fehlende Dateien löschen", "Differente Dateien ersetzen", "Attribute vergleichen", "Inhalte vergleichen (langsam)", "Unterordner einbeziehen", "Versteckte Dateien einbeziehen", "Versteckte Ordner einbeziehen", "Protokolldatei erstellen")
     Copy_Form      = "Aufgabenformular"
     DiskSpace_Form = "Benachrichtigungsformular"
     lb_DiskSpace   = "Nicht genügend Speicherplatz für folgende Aktion vorhanden:" + $NL + $NL +
@@ -72,6 +70,7 @@ $Txt_List = @{
     bt_Cancel      = "Abbruch"
     bt_Retry       = "Erneut versuchen"
     bt_Abort       = "Überspringen"
+    NewFolder      = "Bitte Ordnername eingeben. Bestätigen mit 'Enter'."
 }
 
 $Tooltips_List = @{
@@ -92,18 +91,19 @@ $Icons_List = @{
     Replace   = "$env:windir\system32\shell32.dll|295"
 }
 
-$Synopsis_List = @(("KEINE","ALLE"),("NICHT GELÖSCHT","GELÖSCHT"),("NICHT ERSETZT","ERSETZT"),("NICHT","MIT DEM ORIGINAL"),("AUS","EIN"),("NICHT","EBENFALLS"),("NICHT","EBENFALLS"),("KEINE","eine"))
+$Synopsis_List = @(("NICHT KOPIERT","KOPIERT"),("NICHT GELÖSCHT","GELÖSCHT"),("NICHT ERSETZT","ERSETZT"),("NICHT","ZUSÄTZLICH"),("NICHT","ZUSÄTZLICH"),("AUS","EIN"),("NICHT","EBENFALLS"),("NICHT","EBENFALLS"),("KEINE","eine"))
 
 $Synopsis = "Quellverzeichnis: {0}" + $NL +
             "Zielverzeichnis: {1}" + $NL + $NL +
-            "Es werden {2} Dateien vom Quellverzeichnis ins Zielverzeichnis kopiert." + $NL +
-            "Im Quellverzeichnis nicht vorhandene Dateien werden im Zielverzeichnis {3}." + $NL +
-            "Dateien älteren Datums werden durch gleichnamige Dateien neueren Datums {4}." + $NL + $NL +
-            "Im Zielverzeichnis abweichende Attribute werden {5} überschrieben (nur bei ERSETZEN)." + $NL + $NL +
-            "Sämtliche Aktionen schließen Ordner und Unterordner sowie deren Dateien {6}." + $NL +
-            "Versteckte Dateien sind {7} von den Aktionen betroffen." + $NL +
-            "Versteckte Ordner sind {8} von den Aktionen betroffen." + $NL + $NL +
-            "Im Anschluss wird {9} Protokolldatei ERSTELLT und GELADEN."
+            "Im Quellverzeichnis vorhandene und im Zielverzeichnis fehlende Elemente werden {2}." + $NL +
+            "Im Zielverzeichnis vorhandene und im Quellverzeichnis fehlende Elemente werden {3}." + $NL +
+            "In beiden Verzeichnissen vorhandene Elemente werden anhand von Datum und Größe miteinander verglichen und bei Differenz {4}." + $NL + $NL +
+            "Datei- und Ordnerattribute werden {5} miteinander verglichen." + $NL +
+            "Dateiinhalte werden {6} miteinander verglichen (beansprucht viel Zeit!)." + $NL + $NL +
+            "Sämtliche Aktionen schließen Unterordner sowie deren Elemente {7}." + $NL +
+            "Versteckte Dateien sind {8} von den Aktionen betroffen." + $NL +
+            "Versteckte Ordner sind {9} von den Aktionen betroffen." + $NL + $NL +
+            "Im Anschluss wird {10} Protokolldatei ERSTELLT und GELADEN."
 
 # =============================================================
 # ========== Win32Functions ===================================
@@ -254,7 +254,7 @@ function Test-Parent ([string]$PathA, [string]$PathB)
 
 function Test-Empty ([string]$Path)
     {
-        return [string]::Empty -eq (Get-Item -Path $Path).GetFiles('*',[System.IO.SearchOption]::AllDirectories)
+        return $null -eq (Get-ChildItem -Path $Path -Recurse -File)
     }
 
 # -------------------------------------------------------------
@@ -293,7 +293,7 @@ function Clean-Up ([array]$List)
 
 # -------------------------------------------------------------
 
-function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bool]$Replace, [bool]$Attributes, [bool]$Sub, [bool]$HiddenF, [bool]$HiddenD, [bool]$OutFile, [string]$SrcPath, [string]$DstPath, [string]$OutPath)
+function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bool]$Replace, [bool]$Attributes, [bool]$Compare, [bool]$Sub, [bool]$HiddenF, [bool]$HiddenD, [bool]$OutFile, [string]$SrcPath, [string]$DstPath, [string]$OutPath)
     {
         $Runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
         $Runspace.ApartmentState = "STA"
@@ -305,6 +305,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
         $Runspace.SessionStateProxy.SetVariable("Remove",$Remove)
         $Runspace.SessionStateProxy.SetVariable("Replace",$Replace)
         $Runspace.SessionStateProxy.SetVariable("Attributes",$Attributes)
+        $Runspace.SessionStateProxy.SetVariable("Compare",$Compare)
         $Runspace.SessionStateProxy.SetVariable("Sub",$Sub)
         $Runspace.SessionStateProxy.SetVariable("HiddenF",$HiddenF)
         $Runspace.SessionStateProxy.SetVariable("HiddenD",$HiddenD)
@@ -319,6 +320,12 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 $SyncHash.bt_All.Enabled = $false
                 $SyncHash.bt_Exit.Enabled = $false
 
+                $SyncHash.pb_Copy.Value = 0
+                $SyncHash.pb_Remove.Value = 0
+                $SyncHash.pb_Replace.Value = 0
+
+                $SHA = New-Object -TypeName System.Security.Cryptography.SHA256Managed
+
                 $NL = [System.Environment]::NewLine
 
                 $Protocol_List = @{
@@ -328,15 +335,12 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                     RemoveF    = "$NL[REMOVED ITEMS - FILES]$NL"
                                     ReplaceD   = "$NL[REPLACED ITEMS - DIRECTORIES]$NL"
                                     ReplaceF   = "$NL[REPLACED ITEMS - FILES]$NL"
-                                    ReplaceDA  = "$NL[REPLACED ITEMS - DIRECTORY ATTRIBUTES]$NL"
-                                    ReplaceFA  = "$NL[REPLACED ITEMS - FILE ATTRIBUTES]$NL"
                                   }
 
                 $Formatter = @{
                                 A = @{
                                         RemoveD    = "{0}"
                                         DirTotal   = "{0} Directories"
-                                        AttriTotal = "{0} Files"
                                      }
 
                                 B = @{
@@ -351,10 +355,6 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                      }
 
                                 D = @{
-                                        ReplaceA  = "{0} == {1} => {2}"
-                                     }
-
-                                E = @{
                                         FileTotal  = "{0} Files / {1} MB / {2} Bytes"
                                      }
                               }
@@ -492,68 +492,105 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                         $CmpWSrcF += @([pscustomobject]@{Name = $i.Name.Replace($DstPath,$SrcPath); Dir = $i.Dir; Time = $i.Time; Attributes = $i.Attributes; Bytes = $i.Bytes})
                     }
 
-                ForEach($i in $LstSrcD)
+                If ($Copy -or $Replace)
                     {
-                        If ($i.Name -in $CmpWSrcD.Name)
+                        ForEach($i in $LstSrcD)
                             {
-                                $TimeCmpD += @([pscustomobject]@{Src = $i; Dst = $LstDstD[$CmpWSrcD.Name.IndexOf($i.Name)]})
+                                If ($i.Name -in $CmpWSrcD.Name)
+                                    {
+                                        $TimeCmpD += @([pscustomobject]@{Src = $i; Dst = $LstDstD[$CmpWSrcD.Name.IndexOf($i.Name)]})
+                                    }
+                                Else
+                                    {
+                                        $ToCopyD += @([pscustomobject]@{Src = $i; Dst = $CmpWDstD[$LstSrcD.Name.IndexOf($i.Name)]})
+                                    }
+
+                                $Percent = ($LstSrcD.IndexOf($i) / ($LstSrcD.Count + $LstSrcF.Count)) * 100
+                                $SyncHash.pb_Copy.Value = $Percent
                             }
-                        Else
+
+                        ForEach($i in $LstSrcF)
                             {
-                                $ToCopyD += @([pscustomobject]@{Src = $i; Dst = $CmpWDstD[$LstSrcD.Name.IndexOf($i.Name)]})
+                                If ($i.Name -in $CmpWSrcF.Name)
+                                    {
+                                        $TimeCmpF += @([pscustomobject]@{Src = $i; Dst = $LstDstF[$CmpWSrcF.Name.IndexOf($i.Name)]})
+                                    }
+                                Else
+                                    {
+                                        $ToCopyF += @([pscustomobject]@{Src = $i; Dst = $CmpWDstF[$LstSrcF.Name.IndexOf($i.Name)]})
+                                    }
+
+                                $Percent = (($LstSrcF.IndexOf($i) + $LstSrcD.Count) / ($LstSrcD.Count + $LstSrcF.Count)) * 100
+                                $SyncHash.pb_Copy.Value = $Percent
                             }
+
+                        $SyncHash.pb_Copy.Value = 100
                     }
 
-                ForEach($i in $LstSrcF)
+                If ($Remove)
                     {
-                        If ($i.Name -in $CmpWSrcF.Name)
+                        ForEach($i in $LstDstD)
                             {
-                                $TimeCmpF += @([pscustomobject]@{Src = $i; Dst = $LstDstF[$CmpWSrcF.Name.IndexOf($i.Name)]})
+                                If ($i.Name -notin $CmpWDstD.Name)
+                                    {
+                                        $ToRemoveD += @($i)
+                                    }
+
+                                $Percent = ($LstDstD.IndexOf($i) / ($LstDstD.Count + $LstDstF.Count)) * 100
+                                $SyncHash.pb_Remove.Value = $Percent
                             }
-                        Else
+
+                        ForEach($i in $LstDstF)
                             {
-                                $ToCopyF += @([pscustomobject]@{Src = $i; Dst = $CmpWDstF[$LstSrcF.Name.IndexOf($i.Name)]})
+                                If ($i.Name -notin $CmpWDstF.Name)
+                                    {
+                                        $ToRemoveF += @($i)
+                                    }
+
+                                $Percent = (($LstDstF.IndexOf($i) + $LstDstD.Count) / ($LstDstD.Count + $LstDstF.Count)) * 100
+                                $SyncHash.pb_Remove.Value = $Percent
                             }
+
+                        $SyncHash.pb_Remove.Value = 100
                     }
 
-                ForEach($i in $LstDstD)
+                If ($Replace)
                     {
-                        If ($i.Name -notin $CmpWDstD.Name)
+                        ForEach($i in $TimeCmpF)
                             {
-                                $ToRemoveD += @($i)
-                            }
-                    }
+                                If ($i.Src.Time -ne $i.Dst.Time -or $i.Src.Bytes -ne $i.Dst.Bytes)
+                                    {
+                                        $ToReplaceF += @($i)
+                                    }
+                                ElseIf ($Attributes -and $i.Src.Attributes -ne $i.Dst.Attributes)
+                                    {
+                                        $ToReplaceF += @($i)
+                                    }
+                                ElseIf ($Compare -and ([System.Convert]::ToBase64String($SHA.ComputeHash([System.IO.File]::ReadAllBytes($i.Src.Name))) -ne [System.Convert]::ToBase64String($SHA.ComputeHash([System.IO.File]::ReadAllBytes($i.Dst.Name)))))
+                                    {
+                                        $ToReplaceF += @($i)
+                                    }
 
-                ForEach($i in $LstDstF)
-                    {
-                        If ($i.Name -notin $CmpWDstF.Name)
-                            {
-                                $ToRemoveF += @($i)
+                                $Percent = ($TimeCmpF.IndexOf($i) / ($TimeCmpF.Count + $TimeCmpD.Count)) * 100
+                                $SyncHash.pb_Replace.Value = $Percent
                             }
-                    }
 
-                ForEach($i in $TimeCmpF)
-                    {
-                        If ($i.Src.Time -gt $i.Dst.Time)
+                        ForEach($i in $TimeCmpD)
                             {
-                                $ToReplaceF += @($i)
-                            }
-                        ElseIf ($i.Src.Attributes -ne $i.Dst.Attributes)
-                            {
-                                $ToReplaceFA += @($i)
-                            }
-                    }
+                                If ($i.Src.Time -ne $i.Dst.Time)
+                                    {
+                                        $ToReplaceD += @($i)
+                                    }
+                                ElseIf ($Attributes -and $i.Src.Attributes -ne $i.Dst.Attributes)
+                                    {
+                                        $ToReplaceD += @($i)
+                                    }
 
-                ForEach($i in $TimeCmpD)
-                    {
-                        If ($i.Src.Time -gt $i.Dst.Time)
-                            {
-                                $ToReplaceD += @($i)
+                                $Percent = (($TimeCmpD.IndexOf($i) + $TimeCmpF.Count) / ($TimeCmpF.Count + $TimeCmpD.Count)) * 100
+                                $SyncHash.pb_Replace.Value = $Percent
                             }
-                        ElseIf ($i.Src.Attributes -ne $i.Dst.Attributes)
-                            {
-                                $ToReplaceDA += @($i)
-                            }
+
+                        $SyncHash.pb_Replace.Value = 100
                     }
 
                 $SyncHash.pb_Copy.Value = 0
@@ -569,11 +606,8 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 $ToReplaceD = [array]($ToReplaceD | Sort-Object -Property {$_.Src.Name})
                 $ToReplaceF = [array]($ToReplaceF | Sort-Object -Property {$_.Src.Dir,$_.Src.Name})
 
-                $ToReplaceDA = [array]($ToReplaceDA | Sort-Object -Property {$_.Src.Name})
-                $ToReplaceFA = [array]($ToReplaceFA | Sort-Object -Property {$_.Src.Dir,$_.Src.Name})
-
-                $FindLongest  = [object[]]::new(5)
-                $Longest      = [object[]]::new(5)
+                $FindLongest  = [object[]]::new(3)
+                $Longest      = [object[]]::new(3)
                 $Data         = [object[]]::new(0)
                 $FileProtocol = [string]::Empty
 
@@ -585,17 +619,17 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                 }
 
                 $ScriptMB = {
-                    If     (!($null -eq $this.Src.Bytes)) {"{0:N2}" -f ($this.Src.Bytes / 1MB)}
-                    ElseIf (!($null -eq $this.Bytes))     {"{0:N2}" -f ($this.Bytes / 1MB)}
-                    ElseIf (!($null -eq $this))           {"{0:N2}" -f ($this / 1MB)}
-                    Else                                  {"0"}
+                    If     ($null -ne $this.Src.Bytes) {"{0:N2}" -f ($this.Src.Bytes / 1MB)}
+                    ElseIf ($null -ne $this.Bytes)     {"{0:N2}" -f ($this.Bytes / 1MB)}
+                    ElseIf ($null -ne $this)           {"{0:N2}" -f ($this / 1MB)}
+                    Else                               {"0"}
                 }
 
                 $ScriptB = {
-                    If     (!($null -eq $this.Src.Bytes)) {If ($this.Src.Bytes) {"{0:#,#}" -f $this.Src.Bytes} Else {"0"}}
-                    ElseIf (!($null -eq $this.Bytes))     {If ($this.Bytes)     {"{0:#,#}" -f $this.Bytes}     Else {"0"}}
-                    ElseIf (!($null -eq $this))           {If ($this)           {"{0:#,#}" -f $this}           Else {"0"}}
-                    Else                                  {"0"}
+                    If     ($null -ne $this.Src.Bytes) {If ($this.Src.Bytes) {"{0:#,#}" -f $this.Src.Bytes} Else {"0"}}
+                    ElseIf ($null -ne $this.Bytes)     {If ($this.Bytes)     {"{0:#,#}" -f $this.Bytes}     Else {"0"}}
+                    ElseIf ($null -ne $this)           {If ($this)           {"{0:#,#}" -f $this}           Else {"0"}}
+                    Else                               {"0"}
                 }
 
                 $TransferSize.Keys | ForEach-Object {$TransferSize.$_ | Add-Member -MemberType ScriptMethod -Name "ToMByte" -Value $ScriptMB -Force}
@@ -671,7 +705,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                                         $Data += @(($Formatter.C.CopyF, $i.Src.Name, $i.Dst.Name, $i.ToByte()), $NL)
                                                     }
 
-                                                $Data += @($NL, ($Formatter.E.FileTotal, $ToCopyF.Count, $TransferSize.Copy.ToMByte(), $TransferSize.Copy.ToByte()), $NL)
+                                                $Data += @($NL, ($Formatter.D.FileTotal, $ToCopyF.Count, $TransferSize.Copy.ToMByte(), $TransferSize.Copy.ToByte()), $NL)
                                             }
                                     }
                             }
@@ -726,7 +760,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                                 $Data += @(($Formatter.C.RemoveF, $i.Name, [string]::Empty, $i.ToByte()), $NL)
                                             }
 
-                                        $Data += @($NL, ($Formatter.E.FileTotal, $ToRemoveF.Count, $TransferSize.Remove.ToMByte(), $TransferSize.Remove.ToByte()), $NL)
+                                        $Data += @($NL, ($Formatter.D.FileTotal, $ToRemoveF.Count, $TransferSize.Remove.ToMByte(), $TransferSize.Remove.ToByte()), $NL)
                                     }
                             }
                     }
@@ -792,59 +826,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                                         $Data += @(($Formatter.C.ReplaceF, $i.Dst.Name, $i.Src.Name, $i.ToByte()), $NL)
                                                     }
 
-                                                $Data += @($NL, ($Formatter.E.FileTotal, $ToReplaceF.Count, $TransferSize.Replace.ToMByte(), $TransferSize.Replace.ToByte()), $NL)
-                                            }
-                                    }
-
-                                If ($Attributes)
-                                    {
-                                        $SyncHash.WriteMsg.Invoke($SyncHash.tb_Events, $true, $true, $true, $ToReplaceFA.Count, $ToReplaceDA.Count, $null, $null, $SyncHash.Msg_List.ReplaceA)
-
-                                        ForEach($i in $ToReplaceFA)
-                                            {
-                                                Set-ItemProperty -LiteralPath $i.Dst.Name -Name Attributes -Value $i.Src.Attributes
-                                            }
-
-                                        ForEach($i in $ToReplaceDA)
-                                            {
-                                                Set-ItemProperty -LiteralPath $i.Dst.Name -Name Attributes -Value $i.Src.Attributes
-                                            }
-
-                                        If ($OutFile)
-                                            {
-                                                If ($ToReplaceDA)
-                                                    {
-                                                        $Data += @($Protocol_List.ReplaceDA, $NL)
-
-                                                        ForEach($i in $ToReplaceDA)
-                                                            {
-                                                                $Val = $i.Src.Attributes.value__ -bor [System.Convert]::ToInt32(10000,2)
-                                                                $i.Src.Attributes = [System.IO.FileAttributes]$Val
-                                                                $Val = $i.Dst.Attributes.value__ -bor [System.Convert]::ToInt32(10000,2)
-                                                                $i.Dst.Attributes = [System.IO.FileAttributes]$Val
-                                                                $FindLongest[0] += @($i.Dst.Name.Length)
-                                                                $FindLongest[3] += @($i.Dst.Attributes.ToString().Length)
-                                                                $FindLongest[4] += @($i.Src.Attributes.ToString().Length)
-                                                                $Data += @(($Formatter.D.ReplaceA, $i.Dst.Name, $i.Dst.Attributes.ToString(), $i.Src.Attributes.ToString()), $NL)
-                                                            }
-
-                                                        $Data += @($NL, ($Formatter.A.DirTotal, $ToReplaceDA.Count), $NL)
-                                                    }
-
-                                                If ($ToReplaceFA)
-                                                    {
-                                                        $Data += @($Protocol_List.ReplaceFA, $NL)
-
-                                                        ForEach($i in $ToReplaceFA)
-                                                            {
-                                                                $FindLongest[0] += @($i.Dst.Name.Length)
-                                                                $FindLongest[3] += @($i.Dst.Attributes.ToString().Length)
-                                                                $FindLongest[4] += @($i.Src.Attributes.ToString().Length)
-                                                                $Data += @(($Formatter.D.ReplaceA, $i.Dst.Name, $i.Dst.Attributes.ToString(), $i.Src.Attributes.ToString()), $NL)
-                                                            }
-
-                                                        $Data += @($NL, ($Formatter.A.AttriTotal, $ToReplaceFA.Count), $NL)
-                                                    }
+                                                $Data += @($NL, ($Formatter.D.FileTotal, $ToReplaceF.Count, $TransferSize.Replace.ToMByte(), $TransferSize.Replace.ToByte()), $NL)
                                             }
                                     }
                             }
@@ -855,6 +837,8 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                     }
 
                 $SyncHash.WriteMsg.Invoke($SyncHash.tb_Events, $true, $true, $false, $null, $null, $null, $null, $SyncHash.Msg_List.Finished)
+
+                $SHA.Dispose()
 
                 $SyncHash.bt_Copy.Enabled = $true
                 $SyncHash.bt_All.Enabled = $true
@@ -886,10 +870,6 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                         $FileProtocol += $Data[$i][0] -f ($Data[$i][1]).PadRight($Longest[0],"."), ($Data[$i][2]).PadRight($Longest[1],"."), ($Data[$i][3]).PadLeft($Longest[2]," ")
                                     }
                                 ElseIf ($Formatter.D.ContainsValue($Data[$i][0]))
-                                    {
-                                        $FileProtocol += $Data[$i][0] -f ($Data[$i][1]).PadRight($Longest[0],"."), ($Data[$i][2]).PadLeft($Longest[3],"."), ($Data[$i][3]).PadLeft($Longest[4],".")
-                                    }
-                                ElseIf ($Formatter.E.ContainsValue($Data[$i][0]))
                                     {
                                         $FileProtocol += $Data[$i][0] -f $Data[$i][1], $Data[$i][2], $Data[$i][3]
                                     }
@@ -954,24 +934,25 @@ function Reverse-Me ([object]$Button, [object]$TextBox, [string]$Path)
             }
         Else
             {
-                $TextBox.Text = $TextNewFolder
+                $TextBox.Text = $Txt_List.NewFolder
                 $Form.ActiveControl = $TextBox
             }
     }
 
 # -------------------------------------------------------------
 
-function Fill-Synopsis ([string]$Synopsis, [array]$List, [string]$SrcPath, [string]$DstPath, [bool]$Copy, [bool]$Remove, [bool]$Replace, [bool]$Attributes, [bool]$Sub, [bool]$HiddenF, [bool]$HiddenD, [bool]$OutFile)
+function Fill-Synopsis ([string]$Synopsis, [array]$List, [string]$SrcPath, [string]$DstPath, [bool]$Copy, [bool]$Remove, [bool]$Replace, [bool]$Attributes, [bool]$Compare, [bool]$Sub, [bool]$HiddenF, [bool]$HiddenD, [bool]$OutFile)
     {
         $Table = @{
             0 = $Copy
             1 = $Remove
             2 = $Replace
             3 = $Attributes
-            4 = $Sub
-            5 = $HiddenF
-            6 = $HiddenD
-            7 = $OutFile
+            4 = $Compare
+            5 = $Sub
+            6 = $HiddenF
+            7 = $HiddenD
+            8 = $OutFile
         }
 
         $Var = @($SrcPath,$DstPath)
@@ -1117,7 +1098,7 @@ $ar_Events = @(
                             {
                                 If ($_.KeyCode -eq "Enter")
                                     {
-                                        If (!(Test-Path -Path ($Global:SourcePath + "\" + $this.Text) -PathType Container) -and ($this.Text -ne $TextNewFolder))
+                                        If (!(Test-Path -Path ($Global:SourcePath + "\" + $this.Text) -PathType Container) -and ($this.Text -ne $Txt_List.NewFolder))
                                             {
                                                 New-Item -Path $Global:SourcePath -Name $this.Text -ItemType Directory
                                                 Write-Msg -TextBox $tb_Events -NL $true -Time $true -Count $false -Msg $Msg_List.NewFolder
@@ -1372,7 +1353,7 @@ $ht_Data = @{
             }
 
 $ar_Events = @(
-                {Items.AddRange($Options)}
+                {Items.AddRange($Txt_List.clb_Box)}
                 {Add_SelectedIndexChanged(
                     {
                         $pb_Copy.Visible = $this.GetItemChecked(0)
@@ -1393,6 +1374,31 @@ $ar_Events = @(
                             {$pb_IconReplace.Image = $Icons.Replace}
                         Else
                             {$pb_IconReplace.Image = $Icons.Replace_g}
+                    })}
+                {Add_ItemCheck(
+                    {
+                        If ($_.Index -eq 2)
+                            {
+                                If ($_.NewValue -eq [System.Windows.Forms.CheckState]::Unchecked)
+                                    {
+                                        $this.SetItemCheckState(3,[System.Windows.Forms.CheckState]::Unchecked)
+                                        $this.SetItemCheckState(4,[System.Windows.Forms.CheckState]::Unchecked)
+                                    }
+                            }
+                        ElseIf ($_.Index -eq 3)
+                            {
+                                If ($this.GetItemCheckState(2) -ne [System.Windows.Forms.CheckState]::Checked)
+                                    {
+                                        $_.NewValue = [System.Windows.Forms.CheckState]::Unchecked
+                                    }
+                            }
+                        ElseIf ($_.Index -eq 4)
+                            {
+                                If ($this.GetItemCheckState(2) -ne [System.Windows.Forms.CheckState]::Checked)
+                                    {
+                                        $_.NewValue = [System.Windows.Forms.CheckState]::Unchecked
+                                    }
+                            }
                     })}
               )
 
@@ -1441,7 +1447,7 @@ $ar_Events = @(
                             {
                                 $SyncHash.WriteMsg = (Get-Item "function:Write-Msg").ScriptBlock
                                 $SyncHash.Msg_List = $Msg_List
-                                Copy-Incremental -SyncHash $SyncHash -Copy $clb_Box.GetItemChecked(0) -Remove $clb_Box.GetItemChecked(1) -Replace $clb_Box.GetItemChecked(2) -Attributes $clb_Box.GetItemChecked(3) -Sub $clb_Box.GetItemChecked(4) -HiddenF $clb_Box.GetItemChecked(5) -HiddenD $clb_Box.GetItemChecked(6) -OutFile $clb_Box.GetItemChecked(7) -SrcPath $Global:SourcePath -DstPath $Global:DestinationPath -OutPath $OutputFile
+                                Copy-Incremental -SyncHash $SyncHash -Copy $clb_Box.GetItemChecked(0) -Remove $clb_Box.GetItemChecked(1) -Replace $clb_Box.GetItemChecked(2) -Attributes $clb_Box.GetItemChecked(3) -Compare $clb_Box.GetItemChecked(4) -Sub $clb_Box.GetItemChecked(5) -HiddenF $clb_Box.GetItemChecked(6) -HiddenD $clb_Box.GetItemChecked(7) -OutFile $clb_Box.GetItemChecked(8) -SrcPath $Global:SourcePath -DstPath $Global:DestinationPath -OutPath $OutputFile
                             }
                     })}
               )
@@ -1510,7 +1516,7 @@ $ar_Events = @(
                         $Form.TopMost = $false
                         $this.TopMost = $true
                         $this.ActiveControl = $bt_Cancel
-                        $tb_Synopsis.Text = Fill-Synopsis -Synopsis $Synopsis -List $Synopsis_List -SrcPath $Global:SourcePath -DstPath $Global:DestinationPath -Copy $clb_Box.GetItemChecked(0) -Remove $clb_Box.GetItemChecked(1) -Replace $clb_Box.GetItemChecked(2) -Attributes $clb_Box.GetItemChecked(3) -Sub $clb_Box.GetItemChecked(4) -HiddenF $clb_Box.GetItemChecked(5) -HiddenD $clb_Box.GetItemChecked(6) -OutFile $clb_Box.GetItemChecked(7)
+                        $tb_Synopsis.Text = Fill-Synopsis -Synopsis $Synopsis -List $Synopsis_List -SrcPath $Global:SourcePath -DstPath $Global:DestinationPath -Copy $clb_Box.GetItemChecked(0) -Remove $clb_Box.GetItemChecked(1) -Replace $clb_Box.GetItemChecked(2) -Attributes $clb_Box.GetItemChecked(3) -Compare $clb_Box.GetItemChecked(4) -Sub $clb_Box.GetItemChecked(5) -HiddenF $clb_Box.GetItemChecked(6) -HiddenD $clb_Box.GetItemChecked(7) -OutFile $clb_Box.GetItemChecked(8)
                     })}
                 {Add_FormClosed({$Form.TopMost = $true})}
               )
