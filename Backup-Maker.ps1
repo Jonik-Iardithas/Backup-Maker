@@ -665,13 +665,16 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                     {
                                         Copy-Item -LiteralPath $i.Src.Name -Destination $i.Dst.Name -Force
                                         Set-ItemProperty -LiteralPath $i.Dst.Name -Name Attributes -Value $i.Src.Attributes
+
+                                        $Percent = ($ToCopyD.IndexOf($i) / ($ToCopyD.Count + $ToCopyF.Count)) * 100
+                                        $SyncHash.pb_Copy.Value = $Percent
                                     }
 
                                 ForEach($i in $ToCopyF)
                                     {
                                         Copy-Item -LiteralPath $i.Src.Name -Destination $i.Dst.Name -Force
 
-                                        $Percent = ($ToCopyF.IndexOf($i) / $ToCopyF.Count) * 100
+                                        $Percent = (($ToCopyF.IndexOf($i) + $ToCopyD.Count) / ($ToCopyD.Count + $ToCopyF.Count)) * 100
                                         $SyncHash.pb_Copy.Value = $Percent
                                     }
 
@@ -723,13 +726,16 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                             {
                                 Remove-Item -LiteralPath $i.Name -Force
 
-                                $Percent = ($ToRemoveF.IndexOf($i) / $ToRemoveF.Count) * 100
+                                $Percent = ($ToRemoveF.IndexOf($i) / ($ToRemoveF.Count + $ToRemoveD.Count)) * 100
                                 $SyncHash.pb_Remove.Value = $Percent
                             }
 
                         ForEach($i in $ToRemoveD)
                             {
                                 Remove-Item -LiteralPath $i.Name -Recurse -Force
+
+                                $Percent = (($ToRemoveD.IndexOf($i) + $ToRemoveF.Count) / ($ToRemoveF.Count + $ToRemoveD.Count)) * 100
+                                $SyncHash.pb_Remove.Value = $Percent
                             }
 
                         $SyncHash.pb_Remove.Value = 100
@@ -786,7 +792,7 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                     {
                                         Copy-Item -LiteralPath $i.Src.Name -Destination $i.Dst.Name -Force
 
-                                        $Percent = ($ToReplaceF.IndexOf($i) / $ToReplaceF.Count) * 100
+                                        $Percent = ($ToReplaceF.IndexOf($i) / ($ToReplaceF.Count + $ToReplaceD.Count)) * 100
                                         $SyncHash.pb_Replace.Value = $Percent
                                     }
 
@@ -794,6 +800,9 @@ function Copy-Incremental ([HashTable]$SyncHash, [bool]$Copy, [bool]$Remove, [bo
                                     {
                                         Set-ItemProperty -LiteralPath $i.Dst.Name -Name LastWriteTime -Value $i.Src.Time
                                         Set-ItemProperty -LiteralPath $i.Dst.Name -Name Attributes -Value $i.Src.Attributes
+
+                                        $Percent = (($ToReplaceD.IndexOf($i) + $ToReplaceF.Count) / ($ToReplaceF.Count + $ToReplaceD.Count)) * 100
+                                        $SyncHash.pb_Replace.Value = $Percent
                                     }
 
                                 $SyncHash.pb_Replace.Value = 100
@@ -1385,14 +1394,7 @@ $ar_Events = @(
                                         $this.SetItemCheckState(4,[System.Windows.Forms.CheckState]::Unchecked)
                                     }
                             }
-                        ElseIf ($_.Index -eq 3)
-                            {
-                                If ($this.GetItemCheckState(2) -ne [System.Windows.Forms.CheckState]::Checked)
-                                    {
-                                        $_.NewValue = [System.Windows.Forms.CheckState]::Unchecked
-                                    }
-                            }
-                        ElseIf ($_.Index -eq 4)
+                        ElseIf ($_.Index -in (3..4))
                             {
                                 If ($this.GetItemCheckState(2) -ne [System.Windows.Forms.CheckState]::Checked)
                                     {
